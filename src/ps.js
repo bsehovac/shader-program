@@ -55,7 +55,13 @@
       color: _this.createBuffer('a_color', 3),
     };
 
-    _this.lastTime = Date.now();
+    _this.buffersData = {
+      positions: [],
+      options: [],
+      color: [],
+    }
+
+    _this.lastTime = null;
 
     return _this;
   };
@@ -172,10 +178,15 @@
 
   // Get Delta and Set Size
 
-  PS.Renderer.prototype.getDelta = function() {
+  PS.Renderer.prototype.getDelta = function(precise) {
     var _this = this;
 
-    var now = Date.now();
+    if (_this.lastTime == null) {
+      _this.lastTime = (precise) ? performance.now() : Date.now();
+      return 0;
+    }
+
+    var now = (precise) ? performance.now() : Date.now();
     var delta = now - _this.lastTime;
     _this.lastTime = now;
 
@@ -205,28 +216,35 @@
     var _this = this;
     var _gl = _this.gl;
     var _buffers = _this.buffers;
+    var _buffersData = _this.buffersData;
+
+    var particlesLength = particles.length;
 
     _gl.clear(_gl.COLOR_BUFFER_BIT);
 
-    var particlesData = {
-      positions: [],
-      options: [],
-      color: [],
+    for (var i = 0, p = 0, count = particlesLength * POSITIONS_SIZE; i < count; i += POSITIONS_SIZE, p++) {
+      _buffersData.positions[i]   = particles[p].x;
+      _buffersData.positions[i+1] = particles[p].y;
     }
 
-    for (var i = 0, count = particles.length; i < count; i++) {
-      var p = particles[i];
-      particlesData.positions.push(p.x, p.y);
-      particlesData.options.push(p.size, p.alpha, p.rotation);
-      particlesData.color.push(p.color[0], p.color[1], p.color[2]);
+    for (var i = 0, p = 0, count = particlesLength * OPTIONS_SIZE; i < count; i += OPTIONS_SIZE, p++) {
+      _buffersData.options[i]   = particles[p].size;
+      _buffersData.options[i+1] = particles[p].alpha;
+      _buffersData.options[i+2] = particles[p].rotation;
     }
 
-    _this.setBuffer(_buffers.positions, particlesData.positions);
-    _this.setBuffer(_buffers.options, particlesData.options);
-    _this.setBuffer(_buffers.color, particlesData.color);
+    for (var i = 0, p = 0, count = particlesLength * 3; i < count; i += 3, p++) {
+      _buffersData.color[i]   = particles[p].color[0];
+      _buffersData.color[i+1] = particles[p].color[1];
+      _buffersData.color[i+2] = particles[p].color[2];
+    }
+
+    _this.setBuffer(_buffers.positions, _buffersData.positions);
+    _this.setBuffer(_buffers.options, _buffersData.options);
+    _this.setBuffer(_buffers.color, _buffersData.color);
     _this.setBuffer(null);
 
-    _gl.drawArrays(_gl.POINTS, 0, particlesData.positions.length / POSITIONS_SIZE);
+    _gl.drawArrays(_gl.POINTS, 0, particlesLength);
   };
 
 
