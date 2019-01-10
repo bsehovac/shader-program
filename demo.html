@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WebGL Particle System</title>
+  <style type="text/css">
+    html, body { height: 100%; }
+    body { margin: 0; background: #000; }
+    canvas { display: block; }
+    .particles { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+  </style>
+</head>
+<body>
+  <div class="particles"></div>
+  <script type="text/javascript" src="photon.min.js"></script>
+
+  <script type="text/javascript">
+    class Stats {
+
+      constructor( styles = true ) {
+
+        this.div = document.createElement( 'div' )
+        this.div.innerHTML = 0
+
+        document.body.appendChild( this.div )
+
+        this.elapsed = 0
+        this.frame = 0
+        this.time = null
+
+        if ( styles === true ) this.styles()
+
+        return this
+
+      }
+
+      update() {
+
+        if ( this.time === null && ( this.time = performance.now() ) ) return
+
+        const now = performance.now()
+        const delta = now - this.time
+        this.time = now
+
+        this.frame ++
+        this.elapsed += delta
+
+        if ( this.elapsed >= 1000 ) {
+
+          this.div.innerHTML = this.frame
+          this.frame = 0
+          this.elapsed -= 1000
+
+        }
+
+      }
+
+      styles() {
+
+        this.div.style.cssText = `
+          position: absolute; top: 10px; left: 10px; background: rgba(128, 128, 128, 0.2); 
+          font-size: 13px; font-family: monospace; z-index: 9999; border-radius: 5px;
+          color: #fff; padding: 3px 5px; font-weight: normal;
+        `
+
+      }
+
+    }
+
+    const stats = new Stats()
+
+    const texture = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABAAQMAAACQp+OdAAAABlBMVEUAAAD///+l2Z/dAAAAAXRSTlMAQObYZgAAABRJREFUKM9jAAL5H0BilDHKIIMBAGOyRcGL+JfhAAAAAElFTkSuQmCC'
+
+    const photon = new Photon( {
+      holder: document.querySelector( '.particles' ),
+      texture: texture,
+      onUpdate: () => stats.update(),
+      buffers: {
+        color: { size: 4, data: [] },
+        rotation: { size: 1, data: [] },
+      },
+      vertex: `
+        precision highp float;
+
+        attribute vec3 a_position;
+        attribute vec4 a_color;
+        attribute float a_rotation;
+
+        uniform vec2 u_resolution;
+        uniform float u_time;
+
+        varying vec4 v_color;
+        varying float v_rotation;
+
+        const float PI = 3.14;
+
+        void main() {
+          v_color = a_color;
+          v_rotation = a_rotation;
+
+          vec2 pos = vec2(a_position.x, a_position.y);
+
+          pos.x += cos(pos.x + u_time) * 200.0;
+          pos.y += sin(pos.y + u_time) * 200.0;
+
+          v_rotation += cos(pos.x / 50.0) * PI * 2.0;
+
+          gl_Position = vec4((pos.xy / u_resolution) * 2.0 - 1.0, 0.0, 1.0);
+          gl_PointSize = a_position.z;
+        }`,
+      fragment: `
+        precision highp float;
+
+        uniform sampler2D u_texture;
+
+        varying vec4 v_color;
+        varying float v_rotation;
+
+        void main() {
+
+          float mid = 0.5;
+
+          vec2 rotated = vec2(
+            cos(v_rotation) * (gl_PointCoord.x - mid) + sin(v_rotation) * (gl_PointCoord.y - mid) + mid,
+            cos(v_rotation) * (gl_PointCoord.y - mid) - sin(v_rotation) * (gl_PointCoord.x - mid) + mid
+          );
+
+          vec4 texColor = texture2D(u_texture, rotated);
+          gl_FragColor = v_color * texColor;
+
+          // gl_FragColor = v_color;
+        }`,
+    } )
+
+    const range = ( a, b, i ) => a + ( b - a ) * i
+
+    const positions = [], rotations = [], colors = []
+
+    for ( var i = 0; i < 5000; i ++ ) {
+
+      positions.push(
+        range( 0, photon.width, Math.random() ),
+        range( 0, photon.height, Math.random() ),
+        range( 5.0, 10.0, Math.random() )
+      ) // x, y, size
+
+      rotations.push(
+        range( 0, Math.PI * 2, Math.random() ),
+      )
+
+      colors.push(
+        range( 0, 1, Math.random() ),
+        range( 0, 1, Math.random() ),
+        range( 0, 1, Math.random() ),
+        range( 0.5, 1, Math.random() ),
+      )
+
+    }
+
+    photon.buffers.position = positions
+    photon.buffers.color = colors
+    photon.buffers.rotation = rotations
+  </script>
+</body>
+</html>
