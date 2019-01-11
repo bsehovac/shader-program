@@ -1,10 +1,9 @@
 class Photon {
 
-  constructor( options = {} ) {
+  constructor( holder, options = {} ) {
 
     options = Object.assign( {
       antialias: false,
-      holder: null,
       vertex: `
         precision highp float;
 
@@ -48,10 +47,10 @@ class Photon {
         }`,
       uniforms: {},
       buffers: {},
+      camera: {},
       texture: null,
-      blending: [ 'SRC_ALPHA', 'ONE' ],
       onUpdate: ( () => {} ),
-      camera: {}
+      onResize: ( () => {} ),
     }, options )
 
     const uniforms = Object.assign( {
@@ -72,6 +71,7 @@ class Photon {
       far: 10000,
       aspect: 1,
       z: 100,
+      perspective: true,
     }, options.camera )
 
     const canvas = document.createElement( 'canvas' )
@@ -83,11 +83,12 @@ class Photon {
     this.gl = gl
     this.canvas = canvas
     this.camera = camera
-    this.holder = options.holder
+    this.holder = holder
     this.onUpdate = options.onUpdate
+    this.onResize = options.onResize
     this.data = {}
 
-    this.holder.appendChild( canvas )
+    holder.appendChild( canvas )
 
     this.createProgram( options.vertex, options.fragment )
 
@@ -99,12 +100,13 @@ class Photon {
 
     this.createTexture( options.texture )
 
-    gl.blendFunc( gl[ options.blending[ 0 ] ], gl[ options.blending[ 1 ] ] )
+    gl.blendFunc( gl.SRC_ALPHA, gl.ONE )
     gl.enable( gl.BLEND )
     gl.disable( gl.DEPTH_TEST )
+    gl.disable( gl.CULL_FACE )
 
-    window.addEventListener( 'resize', () => this.setSize(), false )
-    this.setSize()
+    window.addEventListener( 'resize', () => this.resize(), false )
+    this.resize()
 
     this.update = this.update.bind( this )
     this.start = performance.now()
@@ -112,7 +114,7 @@ class Photon {
 
   }
 
-  setSize() {
+  resize() {
 
     const holder = this.holder
     const canvas = this.canvas
@@ -127,35 +129,50 @@ class Photon {
     canvas.style.width = width + 'px'
     canvas.style.height = height + 'px'
 
-    gl.viewport( 0, 0, width, height )
+    gl.viewport( 0, 0, width * dpi, height * dpi )
     gl.clearColor( 0, 0, 0, 0 )
 
     this.uniforms.resolution = [ width, height ]
-    this.uniforms.projection = this.projection( width / height )
+    this.uniforms.projection = this.setProjection( width / height )
+
+    this.onResize( width, height, dpi )
 
   }
 
-  projection( aspect ) {
+  setProjection( aspect ) {
 
     const camera = this.camera
 
-    camera.aspect = aspect
+    if ( camera.perspective ) {
 
-    const fovRad = camera.fov * ( Math.PI / 180 )
-    const f = Math.tan( Math.PI * 0.5 - 0.5 * fovRad )
-    const rangeInv = 1.0 / ( camera.near - camera.far )
+      camera.aspect = aspect
 
-    const matrix = [
-      f / camera.aspect, 0, 0, 0,
-      0, f, 0, 0,
-      0, 0, (camera.near + camera.far) * rangeInv, -1,
-      0, 0, camera.near * camera.far * rangeInv * 2, 0
-    ]
+      const fovRad = camera.fov * ( Math.PI / 180 )
+      const f = Math.tan( Math.PI * 0.5 - 0.5 * fovRad )
+      const rangeInv = 1.0 / ( camera.near - camera.far )
 
-    matrix[ 14 ] += camera.z
-    matrix[ 15 ] += camera.z
+      const matrix = [
+        f / camera.aspect, 0, 0, 0,
+        0, f, 0, 0,
+        0, 0, (camera.near + camera.far) * rangeInv, -1,
+        0, 0, camera.near * camera.far * rangeInv * 2, 0
+      ]
 
-    return matrix
+      matrix[ 14 ] += camera.z
+      matrix[ 15 ] += camera.z
+
+      return matrix
+
+    } else {
+
+      return [
+         2 / this.width, 0, 0, 0,
+         0, -2 / this.height, 0, 0,
+         0, 0, 1, 0,
+        -1, 1, 0, 1,
+      ]
+
+    }
 
   }
 
@@ -257,6 +274,10 @@ class Photon {
         gl.uniform3f( uniform.location, ...value )
         break
       }
+      case 'vec4': {
+        gl.uniform4f( uniform.location, ...value )
+        break
+      }
       case 'mat2': {
         gl.uniformMatrix2fv( uniform.location, false, value )
         break
@@ -271,21 +292,11 @@ class Photon {
       }
     }
 
-    // float       : uniform1f,
-    // vec2        : uniform2f,
-    // vec3        : uniform3f,
-    // vec4        : uniform4f,
-    // int         : uniform1i,
     // ivec2       : uniform2i,
     // ivec3       : uniform3i,
     // ivec4       : uniform4i,
     // sampler2D   : uniform1i,
     // samplerCube : uniform1i,
-
-    // mat2        : uniformMatrix2fv,
-    // mat3        : uniformMatrix3fv,
-    // mat4        : uniformMatrix4fv,
-
     // bool        : uniform1i,
     // bvec2       : uniform2i,
     // bvec3       : uniform3i,
@@ -327,7 +338,7 @@ class Photon {
           this.setBuffer( name, data )
 
           if ( name == 'position' )
-            this.count = buffers.position.data.length / 4
+            this.count = buffers.position.data.length / 3
 
         },
         get: () => buffers[ name ].data
