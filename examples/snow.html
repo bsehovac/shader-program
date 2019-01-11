@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Photon - Advanced</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style type="text/css">
+    html, body { height: 100%; }
+    body { margin: 0; background: #000; }
+    canvas { display: block; }
+    .particles { position: absolute; left: 0; top: 0; right: 0; bottom: 0; height: 600px; }
+  </style>
+</head>
+<body>
+  <div class="particles"></div>
+  <script type="text/javascript" src="../photon.js"></script>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r16/Stats.min.js"></script>
+  <script type="text/javascript">
+
+    const stats = new Stats()
+    document.body.appendChild( stats.domElement )
+
+    const pointSize = 1.8
+
+    const snow = new Photon( document.querySelector( '.particles' ), {
+      vertex: `
+        precision highp float;
+
+        attribute vec4 a_position;
+        attribute vec4 a_color;
+        attribute float a_uniq;
+
+        uniform float u_time;
+        uniform float u_pointSize;
+        uniform vec2 u_resolution;
+        uniform mat4 u_projection;
+
+        uniform vec2 u_speed;
+        uniform float u_radius;
+        uniform float u_height;
+
+        varying vec4 v_color;
+
+        void main() { // 18
+
+          vec3 pos = a_position.xyz;
+          float t = u_time * 100.0;
+
+          pos.x += cos((t - a_position.z - a_uniq) * u_speed.x) * u_radius;
+          pos.y = mod(a_position.y - t * u_speed.y, u_height) - u_height / 2.0;
+          // pos.z += sin((t - a_position.x - a_uniq) * u_speed.x) * u_radius;
+
+          gl_Position = u_projection * vec4( pos.xyz, a_position.w );
+          gl_PointSize = ( u_pointSize / gl_Position.w ) * 100.0;
+
+          v_color = a_color;
+
+        }`,
+      fragment: `
+        precision highp float;
+
+        uniform sampler2D u_texture;
+
+        varying vec4 v_color;
+
+        void main() {
+
+          if ( length( gl_PointCoord - vec2( 0.5 ) ) > 0.5 ) discard;
+
+          gl_FragColor = v_color;
+
+        }`,
+      uniforms: {
+        pointSize: { type: 'float', value: pointSize },
+        speed: { type: 'vec2', value: [ 0.5, 0.2 ] },
+        radius: { type: 'float', value: 0.02 },
+        height: { type: 'float', value: 10 },
+      },
+      buffers: {
+        uniq: { size: 1, data: [] },
+      },
+      onResize( w, h, dpi ) {
+        this.uniforms.pointSize = ( h / 400) * pointSize * dpi
+      },
+      onUpdate() {
+        stats.update()
+      }
+    } )
+
+    const position = [], color = [], uniq = []
+
+    Array.from( { length: 500 }, ( vertex, v ) =>  {
+
+      position.push(
+        -100 + 200 * Math.random(),
+        -100 + 200 * Math.random(),
+        -100 + 200 * Math.random()
+      )
+
+      color.push( 1, 1, 1, 0.2 + Math.random() * 0.5 )
+
+      uniq.push( Math.random() )
+
+    } )
+
+    snow.buffers.position = position
+    snow.buffers.color = color
+    snow.buffers.uniq = uniq
+
+  </script>
+</body>
+</html>
