@@ -8,32 +8,40 @@ class Photon {
       vertex: `
         precision highp float;
 
-        attribute vec3 a_position;
+        attribute vec4 a_position;
+        attribute vec4 a_color;
 
-        uniform vec2 u_resolution;
         uniform float u_time;
+        uniform vec2 u_resolution;
+        uniform mat4 u_projection;
+
+        varying vec4 v_color;
 
         void main() {
 
-          gl_Position = vec4((a_position.xy / u_resolution) * 2.0 - 1.0, 0.0, 1.0);
-          gl_PointSize = a_position.z;
+          gl_Position = u_projection * a_position;
+          gl_PointSize = (10.0 / gl_Position.w) * 100.0;
+
+          v_color = a_color;
 
         }`,
       fragment: `
         precision highp float;
 
         uniform sampler2D u_texture;
-        uniform float u_hasTexture;
+        uniform int u_hasTexture;
+
+        varying vec4 v_color;
 
         void main() {
 
-          if ( u_hasTexture > 0.5 ) {
+          if ( u_hasTexture == 1 ) {
 
-            gl_FragColor = texture2D(u_texture, gl_PointCoord);
+            gl_FragColor = v_color * texture2D(u_texture, gl_PointCoord);
 
           } else {
 
-            gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+            gl_FragColor = v_color;
 
           }
 
@@ -43,17 +51,28 @@ class Photon {
       texture: null,
       blending: [ 'SRC_ALPHA', 'ONE' ],
       onUpdate: ( () => {} ),
+      camera: {}
     }, options )
 
     const uniforms = Object.assign( {
-      resolution: { type: '2f', value: [ 0, 0 ] },
-      time: { type: '1f', value: 0 },
-      hasTexture: { type: '1f', value: 0 },
+      time: { type: 'float', value: 0 },
+      hasTexture: { type: 'int', value: 0 },
+      resolution: { type: 'vec2', value: [ 0, 0 ] },
+      projection: { type: 'mat4', value: [ 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 ] },
     }, options.uniforms )
 
     const buffers = Object.assign( {
       position: { size: 3, data: [] },
+      color: { size: 4, data: [] },
     }, options.buffers )
+
+    const camera = Object.assign( {
+      fov: 60,
+      near: 1,
+      far: 10000,
+      aspect: 1,
+      z: 100,
+    }, options.camera )
 
     const canvas = document.createElement( 'canvas' )
     const gl = canvas.getContext( 'webgl', { antialias: options.antialias } )
@@ -63,6 +82,7 @@ class Photon {
     this.count = 0
     this.gl = gl
     this.canvas = canvas
+    this.camera = camera
     this.holder = options.holder
     this.onUpdate = options.onUpdate
     this.data = {}
@@ -84,7 +104,7 @@ class Photon {
     gl.disable( gl.DEPTH_TEST )
 
     window.addEventListener( 'resize', () => this.setSize(), false )
-    this.setSize( options.width, options.height )
+    this.setSize()
 
     this.update = this.update.bind( this )
     this.start = performance.now()
@@ -94,11 +114,12 @@ class Photon {
 
   setSize() {
 
+    const holder = this.holder
     const canvas = this.canvas
     const gl = this.gl
 
-    const width = this.holder.offsetWidth
-    const height = this.holder.offsetHeight
+    const width = this.width = holder.offsetWidth
+    const height = this.height = holder.offsetHeight
     const dpi = devicePixelRatio
 
     canvas.width = width * dpi
@@ -106,13 +127,35 @@ class Photon {
     canvas.style.width = width + 'px'
     canvas.style.height = height + 'px'
 
-    this.width = width
-    this.height = height
-
     gl.viewport( 0, 0, width, height )
     gl.clearColor( 0, 0, 0, 0 )
 
     this.uniforms.resolution = [ width, height ]
+    this.uniforms.projection = this.projection( width / height )
+
+  }
+
+  projection( aspect ) {
+
+    const camera = this.camera
+
+    camera.aspect = aspect
+
+    const fovRad = camera.fov * ( Math.PI / 180 )
+    const f = Math.tan( Math.PI * 0.5 - 0.5 * fovRad )
+    const rangeInv = 1.0 / ( camera.near - camera.far )
+
+    const matrix = [
+      f / camera.aspect, 0, 0, 0,
+      0, f, 0, 0,
+      0, 0, (camera.near + camera.far) * rangeInv, -1,
+      0, 0, camera.near * camera.far * rangeInv * 2, 0
+    ]
+
+    matrix[ 14 ] += camera.z
+    matrix[ 15 ] += camera.z
+
+    return matrix
 
   }
 
@@ -141,10 +184,10 @@ class Photon {
 
     const gl = this.gl
 
-    var vertexShader = this.createShader( gl.VERTEX_SHADER, vertex )
-    var fragmentShader = this.createShader( gl.FRAGMENT_SHADER, fragment )
+    const vertexShader = this.createShader( gl.VERTEX_SHADER, vertex )
+    const fragmentShader = this.createShader( gl.FRAGMENT_SHADER, fragment )
 
-    var program = gl.createProgram()
+    const program = gl.createProgram()
 
     gl.attachShader( program, vertexShader )
     gl.attachShader( program, fragmentShader )
@@ -174,9 +217,7 @@ class Photon {
 
       const uniform = uniforms[ name ]
 
-      uniform.uniform = gl.getUniformLocation( this.program, 'u_' + name )
-
-      this.setUniform( name, uniform.value )
+      uniform.location = gl.getUniformLocation( this.program, 'u_' + name )
 
       Object.defineProperty( values, name, {
         set: value => {
@@ -200,17 +241,55 @@ class Photon {
     uniform.value = value
 
     switch ( uniform.type ) {
-      case '1f': {
-        value = [ value ]
-        break;
+      case 'int': {
+        gl.uniform1i( uniform.location, value )
+        break
       }
-      case '2f': {
-        value = value
-        break;
+      case 'float': {
+        gl.uniform1f( uniform.location, value )
+        break
+      }
+      case 'vec2': {
+        gl.uniform2f( uniform.location, ...value )
+        break
+      }
+      case 'vec3': {
+        gl.uniform3f( uniform.location, ...value )
+        break
+      }
+      case 'mat2': {
+        gl.uniformMatrix2fv( uniform.location, false, value )
+        break
+      }
+      case 'mat3': {
+        gl.uniformMatrix3fv( uniform.location, false, value )
+        break
+      }
+      case 'mat4': {
+        gl.uniformMatrix4fv( uniform.location, false, value )
+        break
       }
     }
 
-    gl[ 'uniform' + uniform.type ]( uniform.uniform, ...value )
+    // float       : uniform1f,
+    // vec2        : uniform2f,
+    // vec3        : uniform3f,
+    // vec4        : uniform4f,
+    // int         : uniform1i,
+    // ivec2       : uniform2i,
+    // ivec3       : uniform3i,
+    // ivec4       : uniform4i,
+    // sampler2D   : uniform1i,
+    // samplerCube : uniform1i,
+
+    // mat2        : uniformMatrix2fv,
+    // mat3        : uniformMatrix3fv,
+    // mat4        : uniformMatrix4fv,
+
+    // bool        : uniform1i,
+    // bvec2       : uniform2i,
+    // bvec3       : uniform3i,
+    // bvec4       : uniform4i,
 
   }
 
@@ -248,7 +327,7 @@ class Photon {
           this.setBuffer( name, data )
 
           if ( name == 'position' )
-            this.count = buffers.position.data.length / 3
+            this.count = buffers.position.data.length / 4
 
         },
         get: () => buffers[ name ].data
@@ -323,11 +402,11 @@ class Photon {
     const gl = this.gl
     const texture = this.texture
 
-    var textureImage = new Image()
+    const textureImage = new Image()
 
     textureImage.onload = () => {
 
-      gl.bindTexture( gl.TEXTURE_2D, this.texture )
+      gl.bindTexture( gl.TEXTURE_2D, texture )
       gl.texImage2D( gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textureImage )
       gl.texParameteri( gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR )
       gl.texParameteri( gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR )
