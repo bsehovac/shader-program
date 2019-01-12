@@ -1,18 +1,18 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Photon - Advanced</title>
+  <title>ShaderProgram - Helix</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style type="text/css">
     html, body { height: 100%; }
     body { margin: 0; background: #000; }
     canvas { display: block; }
-    .particles { position: absolute; left: 0; top: 0; right: 0; bottom: 0; height: 600px; }
+    .particles { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
   </style>
 </head>
 <body>
   <div class="particles"></div>
-  <script type="text/javascript" src="../photon.js"></script>
+  <script type="text/javascript" src="../ShaderProgram.js"></script>
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r16/Stats.min.js"></script>
   <script type="text/javascript">
 
@@ -32,7 +32,13 @@
       return [ c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 ]
     } )( - Math.PI / 5 )
 
-    const helix = new Photon( document.querySelector( '.particles' ), {
+    const helix = new ShaderProgram( document.querySelector( '.particles' ), {
+      depthTest: true,
+      uniforms: {
+        turns: { type: 'float', value: turns },
+        pointSize: { type: 'float', value: pointSize },
+        transform: { type: 'mat4', value: transform },
+      },
       vertex: `
         precision highp float;
 
@@ -76,25 +82,19 @@
           gl_FragColor = v_color;
 
         }`,
-      uniforms: {
-        turns: { type: 'float', value: turns },
-        pointSize: { type: 'float', value: pointSize },
-        transform: { type: 'mat4', value: transform },
-      },
       onResize( w, h, dpi ) {
         this.uniforms.pointSize = ( h / 400) * pointSize * dpi
       },
       onUpdate() {
         stats.update()
-      }
+      },
     } )
 
     const gl = helix.gl
 
-    gl.enable( gl.DEPTH_TEST )
-    gl.enable( gl.BLEND )
-    gl.blendEquation( gl.FUNC_ADD )
-    gl.blendFunc( gl.ONE, gl.ONE_MINUS_SRC_ALPHA )
+    // gl.enable( gl.BLEND )
+    // gl.blendEquation( gl.FUNC_ADD )
+    // gl.blendFunc( gl.ONE, gl.ONE_MINUS_SRC_ALPHA )
     // gl.blendFuncSeparate( gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE )
 
     // this.blendSrc = SrcAlphaFactor;

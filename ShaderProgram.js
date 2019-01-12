@@ -1,9 +1,13 @@
-class Photon {
+class ShaderProgram {
 
   constructor( holder, options = {} ) {
 
     options = Object.assign( {
       antialias: false,
+      depthTest: false,
+      mousemove: false,
+      autosize: true,
+      side: 'front',
       vertex: `
         precision highp float;
 
@@ -12,6 +16,7 @@ class Photon {
 
         uniform float u_time;
         uniform vec2 u_resolution;
+        uniform vec2 u_mousemove;
         uniform mat4 u_projection;
 
         varying vec4 v_color;
@@ -57,6 +62,7 @@ class Photon {
       time: { type: 'float', value: 0 },
       hasTexture: { type: 'int', value: 0 },
       resolution: { type: 'vec2', value: [ 0, 0 ] },
+      mousemove: { type: 'vec2', value: [ 0, 0 ] },
       projection: { type: 'mat4', value: [ 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 ] },
     }, options.uniforms )
 
@@ -100,21 +106,34 @@ class Photon {
 
     this.createTexture( options.texture )
 
-    gl.blendFunc( gl.SRC_ALPHA, gl.ONE )
     gl.enable( gl.BLEND )
-    gl.disable( gl.DEPTH_TEST )
-    gl.disable( gl.CULL_FACE )
+    gl.enable( gl.CULL_FACE )
+    gl.blendFunc( gl.SRC_ALPHA, gl.ONE )
+    gl[ options.depthTest ? 'enable' : 'disable' ]( gl.DEPTH_TEST )
 
-    window.addEventListener( 'resize', () => this.resize(), false )
+    if ( options.autosize )
+      window.addEventListener( 'resize', e => this.resize( e ), false )
+    if ( options.mousemove )
+      window.addEventListener( 'mousemove', e => this.mousemove( e ), false )
+
     this.resize()
 
     this.update = this.update.bind( this )
-    this.start = performance.now()
+    this.time = { start: performance.now(), old: performance.now() }
     this.update()
 
   }
 
-  resize() {
+  mousemove( e ) {
+
+    let x = e.pageX / this.width * 2 - 1
+    let y = e.pageY / this.height * 2 - 1
+
+    this.uniforms.mousemove = [ x, y ]
+
+  }
+
+  resize( e ) {
 
     const holder = this.holder
     const canvas = this.canvas
@@ -122,6 +141,7 @@ class Photon {
 
     const width = this.width = holder.offsetWidth
     const height = this.height = holder.offsetHeight
+    const aspect = this.aspect = width / height
     const dpi = devicePixelRatio
 
     canvas.width = width * dpi
@@ -133,7 +153,7 @@ class Photon {
     gl.clearColor( 0, 0, 0, 0 )
 
     this.uniforms.resolution = [ width, height ]
-    this.uniforms.projection = this.setProjection( width / height )
+    this.uniforms.projection = this.setProjection( aspect )
 
     this.onResize( width, height, dpi )
 
@@ -418,10 +438,16 @@ class Photon {
     textureImage.onload = () => {
 
       gl.bindTexture( gl.TEXTURE_2D, texture )
+
       gl.texImage2D( gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textureImage )
-      gl.texParameteri( gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR )
+
+      gl.texParameteri( gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR )
       gl.texParameteri( gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR )
-      gl.generateMipmap( gl.TEXTURE_2D )
+
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+
+      // gl.generateMipmap( gl.TEXTURE_2D )
 
     }
 
@@ -432,7 +458,11 @@ class Photon {
   update() {
 
     const gl = this.gl
-    const elapsed = ( performance.now() - this.start ) / 5000
+
+    const now = performance.now()
+    const elapsed = ( now - this.time.start ) / 5000
+    const delta = now - this.time.old
+    this.time.old = now
 
     this.uniforms.time = elapsed
 
@@ -441,7 +471,7 @@ class Photon {
       gl.drawArrays( gl.POINTS, 0, this.count )
     }
 
-    this.onUpdate()
+    this.onUpdate( delta )
 
     requestAnimationFrame( this.update )
 

@@ -1,9 +1,5 @@
-# Photon
-Low Level WebGL Engine\
-~4kb minified
-
 ## Constructor
-Photon( options : *Object* )
+ShaderProgram( options : *Object* )
 
 ### Options
 antialias: *Boolean*,\
@@ -28,7 +24,7 @@ perspective: *Boolean*
 
 ## Basic Example
 ```javascript
-const photon = new Photon( document.querySelector( '.particles' ) )
+const program = new ShaderProgram( document.querySelector( '.particles' ) )
 const positions = [], colors = []
 
 for ( var i = 0; i < 1000; i ++ ) {
@@ -40,6 +36,6 @@ for ( var i = 0; i < 1000; i ++ ) {
   colors.push( 0, 0.5, 1, 0.5 )
 }
 
-photon.buffers.position = positions
-photon.buffers.color = colors
+program.buffers.position = positions
+program.buffers.color = colors
 ```

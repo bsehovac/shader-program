@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Photon - Basic</title>
+  <title>ShaderProgram - Basic</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style type="text/css">
     html, body { height: 100%; }
@@ -12,10 +12,10 @@
 </head>
 <body>
   <div class="particles"></div>
-  <script type="text/javascript" src="../photon.js"></script>
+  <script type="text/javascript" src="../ShaderProgram.js"></script>
   <script type="text/javascript">
 
-    const photon = new Photon( document.querySelector( '.particles' ) )
+    const demo = new ShaderProgram( document.querySelector( '.particles' ) )
 
     const positions = [], colors = []
 
@@ -31,8 +31,8 @@
 
     }
 
-    photon.buffers.position = positions
-    photon.buffers.color = colors
+    demo.buffers.position = positions
+    demo.buffers.color = colors
 
   </script>
 </body>
