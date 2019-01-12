@@ -142,7 +142,7 @@ class ShaderProgram {
     const width = this.width = holder.offsetWidth
     const height = this.height = holder.offsetHeight
     const aspect = this.aspect = width / height
-    const dpi = devicePixelRatio
+    const dpi = this.dpi = devicePixelRatio
 
     canvas.width = width * dpi
     canvas.height = height * dpi

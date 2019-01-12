@@ -1,6 +1,7 @@
 ## Examples
 [Snowfall](https://codepen.io/bsehovac/full/GPwXxq)\
-[Helix](https://codepen.io/bsehovac/full/ZVmMPm)
+[Helix](https://codepen.io/bsehovac/full/ZVmMPm)\
+[Waves](https://codepen.io/bsehovac/full/GPweQe)
 
 ## Constructor
 ShaderProgram( holder: *HTMLElement*, options : *Object* )
