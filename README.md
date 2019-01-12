@@ -1,6 +1,6 @@
 ## Examples
-[Snowfall](https://codepen.io/bsehovac/pen/GPwXxq)\
-[Helix](https://codepen.io/bsehovac/pen/ZVmMPm)
+[Snowfall](https://codepen.io/bsehovac/full/GPwXxq)\
+[Helix](https://codepen.io/bsehovac/full/ZVmMPm)
 
 ## Constructor
 ShaderProgram( holder: *HTMLElement*, options : *Object* )
