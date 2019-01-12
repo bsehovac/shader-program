@@ -79,18 +79,8 @@
         for ( let x = 0; x < width; x += distance ) {
           for ( let z = 0; z < depth; z+= distance ) {
 
-            position.push(
-              - width / 2 + x,
-              -30, // + (Math.cos((x / width) * Math.PI * 6) + Math.sin((z / depth) * Math.PI * 6)) * height,
-              -depth / 2 + z
-            )
-
-            color.push(
-              0,
-              1,
-              0.5,
-              z / depth
-            )
+            position.push( - width / 2 + x, -30, -depth / 2 + z )
+            color.push( 0, 1 - ( x / width ) * 1, 0.5 + x / width * 0.5, z / depth )
 
           }
         }
