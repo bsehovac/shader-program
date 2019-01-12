@@ -1,3 +1,7 @@
+## Examples
+[Snowfall](https://codepen.io/bsehovac/pen/GPwXxq)\
+[Helix](https://codepen.io/bsehovac/pen/ZVmMPm)
+
 ## Constructor
 ShaderProgram( holder: *HTMLElement*, options : *Object* )
 
