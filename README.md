@@ -1,9 +1,8 @@
 ## Constructor
-ShaderProgram( options : *Object* )
+ShaderProgram( holder: *HTMLElement*, options : *Object* )
 
 ### Options
 antialias: *Boolean*,\
-holder: *HTMLElement*,\
 vertex: *GLSL Vertex Shader*,\
 fragment: *GLSL Fragment Shader*,\
 uniforms: *Object*,\
