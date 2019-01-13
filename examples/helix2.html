@@ -19,12 +19,14 @@
     const stats = new Stats()
     document.body.appendChild( stats.domElement )
 
-    const count = 100
-    const particles = 30
+    const container = document.querySelector( '.particles' )
+
+    const count = 30
+    const particles = 1000
     const length = 120
-    const radius = 15
-    const pointSize = 1.8
-    const turns = Math.PI / length * 2
+    const radius = 10
+    const pointSize = 2
+    const turns = Math.PI / length * 3
     const color1 = { r: 0, g: 0.13, b: 1, a: 1 }
     const color2 = { r: 0, g: 0.75, b: 1, a: 1 }
     const transform = ( (a) => {
@@ -32,18 +34,23 @@
       return [ c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 ]
     } )( - Math.PI / 5 )
 
-    const helix = new ShaderProgram( document.querySelector( '.particles' ), {
+    const helix = new ShaderProgram( container, {
       depthTest: true,
+      msaa: true,
       uniforms: {
         turns: { type: 'float', value: turns },
         pointSize: { type: 'float', value: pointSize },
         transform: { type: 'mat4', value: transform },
+      },
+      buffers: {
+        uniq: { size: 2, data: [] },
       },
       vertex: `
         precision highp float;
 
         attribute vec4 a_position;
         attribute vec4 a_color;
+        attribute vec2 a_uniq;
 
         uniform float u_time;
         uniform float u_pointSize;
@@ -61,6 +68,9 @@
           float a = u_time + a_position.x * u_turns;
           pos.z = a_position.z * cos( a ) - a_position.y * sin( a );
           pos.y = a_position.z * sin( a ) + a_position.y * cos( a );
+
+          pos.z += cos( u_time * a_uniq.x + a_uniq.y ) * a_uniq.y;
+          pos.y += sin( u_time * a_uniq.x + a_uniq.y ) * a_uniq.y;
 
           gl_Position = u_projection * u_transform * vec4( pos.xyz, a_position.w );
           gl_PointSize = ( u_pointSize / gl_Position.w ) * 100.0;
@@ -92,29 +102,63 @@
 
     const gl = helix.gl
 
+    gl.enable( gl.BLEND )
+    gl.blendEquation( gl.FUNC_ADD )
+    gl.blendFunc( gl.ONE, gl.ONE_MINUS_SRC_ALPHA )
+    gl.blendFuncSeparate( gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE )
 
-    const position = [], color = []
+    // this.blendSrc = SrcAlphaFactor;
+    // this.blendDst = OneMinusSrcAlphaFactor;
+    // this.blendEquation = AddEquation;
+    // this.blendSrcAlpha = null;
+    // this.blendDstAlpha = null;
+    // this.blendEquationAlpha = null;
+
+    // So, if the material is considered pre-multiplied then it should be the same as
+
+    // blending: THREE.CustomBlending,
+    // blendEquation: THREE.AddEquation,
+    // blendSrc: THREE.OneFactor,
+    // blendDst: THREE.OneMinusSrcAlphaFactor
+
+    // Otherwise it's
+
+    // blending: THREE.CustomBlending,
+    // blendEquation: THREE.AddEquation,
+    // blendSrc: THREE.SrcAlphaFactor,
+    // blendSrcAlpha: THREE.OneFactor,
+    // blendDst: THREE.OneMinusSrcAlphaFactor
+
+    const position = [], color = [], uniq = []
 
     Array.from( { length: count }, ( helix, h ) =>  {
 
       h = h / ( count - 1 )
 
-      const rgba = [
+      const helixColor = [
         color1.r + (color2.r - color1.r) * h,
         color1.g + (color2.g - color1.g) * h,
         color1.b + (color2.b - color1.b) * h,
         1
       ]
 
+      const helixZ = Math.random() * 2 - 1
+
+      const helixUniq = [ Math.random() * 3, Math.random() * 2 ] // speed, size
+
       Array.from( { length: particles }, ( vertex, v ) =>  {
 
+        v = v / ( particles - 1 )
+
         position.push(
-          Math.random() * length - length / 2,
+          v * length - length / 2,
           h * radius * 2 - radius,
-          Math.random() * 6 - 4
+          helixZ
         )
 
-        color.push( ...rgba )
+        color.push( ...helixColor )
+
+        uniq.push( ...helixUniq )
 
       } )
 
@@ -122,6 +166,7 @@
 
     helix.buffers.position = position
     helix.buffers.color = color
+    helix.buffers.uniq = uniq
 
   </script>
 </body>

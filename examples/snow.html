@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style type="text/css">
     html, body { height: 100%; }
-    body { margin: 0; background: #000; }
+    body { margin: 0; background: #0F2027; background: linear-gradient(to bottom, #0F2027, #080e10); }
     canvas { display: block; }
     .particles { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
   </style>
@@ -13,7 +13,6 @@
 <body>
   <div class="particles"></div>
   <script type="text/javascript" src="../ShaderProgram.js"></script>
-  <script type="text/javascript" src="snowflake.js"></script>
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r16/Stats.min.js"></script>
   <script type="text/javascript">
 
@@ -152,7 +151,6 @@
 
         if ( Math.random() > 0.995 ) {
           wind.target = ( wind.min + Math.random() * ( wind.max - wind.min ) ) * ( Math.random() > 0.5 ? -1 : 1 )
-          console.log( wind.target )
         }
 
         stats.update()

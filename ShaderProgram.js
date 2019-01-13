@@ -7,7 +7,7 @@ class ShaderProgram {
       depthTest: false,
       mousemove: false,
       autosize: true,
-      side: 'front',
+      msaa: 0,
       vertex: `
         precision highp float;
 
@@ -90,6 +90,7 @@ class ShaderProgram {
     this.canvas = canvas
     this.camera = camera
     this.holder = holder
+    this.msaa = options.msaa
     this.onUpdate = options.onUpdate
     this.onResize = options.onResize
     this.data = {}
@@ -142,7 +143,7 @@ class ShaderProgram {
     const width = this.width = holder.offsetWidth
     const height = this.height = holder.offsetHeight
     const aspect = this.aspect = width / height
-    const dpi = this.dpi = devicePixelRatio
+    const dpi = this.dpi = Math.max( this.msaa ? 2 : 1, devicePixelRatio )
 
     canvas.width = width * dpi
     canvas.height = height * dpi
